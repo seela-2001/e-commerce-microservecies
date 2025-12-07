@@ -3,7 +3,7 @@ FROM node:16-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
-COPY . .
+COPY ../ .
 
 # Stage 2: Production (Distroless)
 FROM gcr.io/distroless/nodejs:16
