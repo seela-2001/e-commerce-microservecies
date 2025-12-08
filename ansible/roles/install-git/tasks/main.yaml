@@ -1,0 +1,20 @@
+- name: Update package cache (Ubuntu/Debian)
+  apt:
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+    
+
+- name: Install Git
+  ansible.builtin.apt: 
+    name: git 
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Verify Git installation
+  command: git --version
+  register: git_version
+  changed_when: false
+
+- name: Display Git version
+  debug: 
+    msg: "Git installed successfully, git version: {{ git_version.stdout}}"
