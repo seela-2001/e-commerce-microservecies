@@ -32,6 +32,6 @@ jobs:
       - name: Build and Push frontend image
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ./frontend
           push: true
           tags: ${{ vars.DOCKERHUB_USERNAME}}/depi-frontend:latest
