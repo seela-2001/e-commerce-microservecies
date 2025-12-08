@@ -1,0 +1,30 @@
+- name: Update apt
+  ansible.builtin.apt:
+    update_cache: yes
+
+- name: Install Docker
+  ansible.builtin.apt:
+    name: docker.io
+    state: present
+
+- name: Start and enable Docker service
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Run Nginx container
+  docker_container:
+    name: nginx_container
+    image: nginx
+    state: started
+    ports:
+      - "8080:80"
+
+- name: Show running containers
+  shell: docker ps
+  register: result
+
+- name: Display running containers
+  debug:
+    var: result.stdout_lines

@@ -1,0 +1,6 @@
+- name: Deploy Flipkart Ecommerce Application
+  hosts: webservers
+
+  roles:
+    - role: install-git
+    - role: install-docker
