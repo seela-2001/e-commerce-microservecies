@@ -3,3 +3,5 @@ terraform.tfstate.backup
 
 .terraform/
 .terraform.lock.hcl
+
+flipkart-key.pem
