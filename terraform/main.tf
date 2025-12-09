@@ -9,7 +9,7 @@ terraform {
     backend "s3" {
         bucket = "flipkart-tf-state-bucket-gp"
         key = "dev/terraform.tfstate"
-        region = "us-east-1"
+        region = "eu-north-1"
     }
 }
 
