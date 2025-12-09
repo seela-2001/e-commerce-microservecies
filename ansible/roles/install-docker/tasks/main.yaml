@@ -13,6 +13,24 @@
     state: started
     enabled: yes
 
+# Add user to docker group ---
+
+- name: Ensure docker group exists
+  ansible.builtin.group:
+    name: docker
+    state: present
+
+- name: Add user to docker group
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+
+- name: Reset SSH connection to apply new group membership
+  ansible.builtin.meta: reset_connection
+
+# ---
+
 - name: Run Nginx container
   docker_container:
     name: nginx_container
