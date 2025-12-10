@@ -74,7 +74,12 @@ jobs:
           ANSIBLE_HOST_KEY_CHECKING: "False"
         run: ansible-playbook -i hosts.ini ../ansible/playbook.yaml
 
-
+      # Check User Groups
+      - name: Check User Groups (Debug)
+        working-directory: terraform
+        run: |
+          echo "Checking groups for user ubuntu..."
+          ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no ubuntu@${{ env.EC2_IP }} "groups"
 
       - name: Deploy Code via Rsync
         working-directory: terraform
