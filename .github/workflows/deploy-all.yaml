@@ -153,6 +153,6 @@ jobs:
             echo "Stopping running containers..."
             docker-compose down 2>/dev/null || docker compose down 2>/dev/null || true
             echo "Starting containers..."
-            docker-compose up -d --build || docker compose up -d --build
+            docker-compose up -d  || docker compose up -d 
             echo "Deployment completed!"
             docker ps
