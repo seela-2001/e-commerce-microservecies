@@ -75,7 +75,7 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           echo "${{ steps.tf_output.outputs.ssh_private_key }}" > ~/.ssh/deploy_key.pem
-          chmod 600 ~/.ssh/deploy_key.pem
+          chmod 400 ~/.ssh/deploy_key.pem
 
       - name: Test SSH Connection
         run: |
