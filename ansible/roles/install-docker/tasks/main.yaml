@@ -46,3 +46,18 @@
 - name: Display running containers
   debug:
     var: result.stdout_lines
+
+
+- name: Install Docker Compose
+  become: yes
+  get_url:
+    url: https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64
+    dest: /usr/local/bin/docker-compose
+    mode: '0755'
+
+- name: Create docker compose symlink
+  become: yes
+  file:
+    src: /usr/local/bin/docker-compose
+    dest: /usr/bin/docker-compose
+    state: link
