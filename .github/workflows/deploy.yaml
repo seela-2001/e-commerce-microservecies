@@ -74,6 +74,16 @@ jobs:
           ANSIBLE_HOST_KEY_CHECKING: "False"
         run: ansible-playbook -i hosts.ini ../ansible/playbook.yaml
 
+      # Create .env from example
+      - name: Create Backend Env File
+        working-directory: terraform
+        run: |
+          # Copy the example file to the actual .env file
+          cp ../backend/config/config.env.example ../backend/config/.env
+          
+          # (Optional) If you need to verify it was created:
+          ls -la ../backend/config/
+
       - name: Deploy Code via Rsync
         working-directory: terraform
         run: |
@@ -85,3 +95,18 @@ jobs:
           --exclude 'ansible' \
           --exclude 'node_modules' \
           ../ ubuntu@${{ env.EC2_IP }}:/home/ubuntu/app/
+
+      # Start Docker Containers
+      - name: Start Docker Containers
+        working-directory: terraform
+        run: |
+          # Connect via SSH and run these commands on the server
+          ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no ubuntu@${{ env.EC2_IP }} << 'EOF'
+            cd /home/ubuntu/app
+            
+            # Stop old containers if running
+            sudo docker compose down || true
+            
+            # Start new containers (rebuilding if necessary)
+            sudo docker compose up -d --build
+          EOF
