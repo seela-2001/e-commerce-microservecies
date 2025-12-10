@@ -46,9 +46,24 @@ jobs:
         working-directory: terraform
         run: terraform apply -var-file="dev-values.tfvars" -auto-approve
 
+
+      - name: Get Connection Info
+        working-directory: terraform
+        run: |
+          # Save the Public IP to a Github ENV variable
+          echo "EC2_IP=$(terraform output -raw instance_public_ip)" >> $GITHUB_ENV
+          
+
+          # Save the Private Key filename to a Github ENV variable
+          echo "KEY_FILE=$(terraform output -raw ssh_private_key)" >> $GITHUB_ENV
+          
+
+
       # Install Ansible
       - name: Install Ansible
         run: |
+          echo "EC2_IP is $EC2_IP"
+          echo "Private key file is $KEY_FILE"
           sudo apt-get update -y
           sudo apt-get install -y ansible
 
@@ -59,13 +74,3 @@ jobs:
           ANSIBLE_HOST_KEY_CHECKING: "False"
         run: ansible-playbook -i hosts.ini ../ansible/playbook.yaml
 
-      - name: Get Connection Info
-        working-directory: terraform
-        run: |
-          # Save the Public IP to a Github ENV variable
-          echo "EC2_IP=$(terraform output -raw instance_public_ip)" >> $GITHUB_ENV
-          echo "EC2_IP is $EC2_IP"
-
-          # Save the Private Key filename to a Github ENV variable
-          echo "KEY_FILE=$(terraform output -raw ssh_private_key)" >> $GITHUB_ENV
-          echo "Private key file is $KEY_FILE"
