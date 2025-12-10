@@ -31,17 +31,24 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
 
+      - name: Clean Terraform State
+        working-directory: terraform
+        run: |
+          rm -rf .terraform
+          rm -f .terraform.lock.hcl
+          rm -f terraform.tfstate*
+
       - name: Terraform Init
         working-directory: terraform
-        run: terraform init
+        run: terraform init -reconfigure
 
       - name: Terraform Plan
         working-directory: terraform
-        run: terraform plan -var-file="dev-values.tfvars"
+        run: terraform plan -var-file="dev-values.tfvars" -refresh=true
 
       - name: Terraform Apply
         working-directory: terraform
-        run: terraform apply -var-file="dev-values.tfvars" -auto-approve
+        run: terraform apply -var-file="dev-values.tfvars" -auto-approve -refresh=true
 
       - name: Wait for EC2 instance to initialize
         run: |
@@ -75,6 +82,8 @@ jobs:
           max_attempts=10
           attempt=0
           
+          echo "Testing SSH connection to ${{ steps.tf_output.outputs.server_ip }}..."
+          
           until ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i ~/.ssh/deploy_key.pem \
             ${{ steps.tf_output.outputs.server_user }}@${{ steps.tf_output.outputs.server_ip }} \
             "echo 'SSH connection successful'" || [ $attempt -eq $max_attempts ]; do
@@ -85,8 +94,15 @@ jobs:
           
           if [ $attempt -eq $max_attempts ]; then
             echo "Failed to establish SSH connection after $max_attempts attempts"
+            echo "Please check:"
+            echo "1. Security group allows SSH (port 22) from 0.0.0.0/0"
+            echo "2. Instance has a public IP"
+            echo "3. Instance is in a public subnet"
+            echo "4. Key pair is correctly associated"
             exit 1
           fi
+          
+          echo "SSH connection established successfully!"
 
       - name: Run Ansible provision
         working-directory: terraform
@@ -138,4 +154,5 @@ jobs:
             docker-compose down 2>/dev/null || docker compose down 2>/dev/null || true
             echo "Starting containers..."
             docker-compose up -d --build || docker compose up -d --build
-
+            echo "Deployment completed!"
+            docker ps
