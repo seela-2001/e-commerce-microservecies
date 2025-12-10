@@ -93,15 +93,22 @@ jobs:
           --exclude 'node_modules' \
           ../ ubuntu@${{ env.EC2_IP }}:/home/ubuntu/app/
 
-      # Create .env from example
+      # Create .env file on EC2 instance from GitHub secrets
       - name: Create Backend Env File
         working-directory: terraform
+        env:
+          ENV_BACKEND_CONTENT: ${{ secrets.ENV_BACKEND_CONTENT }}
         run: |
-          # Copy the example file to the actual .env file
-          cp ../backend/config/config.env.example ../backend/config/.env
-          
-          # (Optional) If you need to verify it was created:
-          ls -la ../backend/config/
+          ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no ubuntu@${{ env.EC2_IP }} << EOF
+            cd /home/ubuntu/app/backend/config
+            
+            # Create the .env file with the secret content
+            echo "$ENV_BACKEND_CONTENT" > .env
+            
+            # Verify it was created
+            echo ".env file created successfully"
+            ls -la .env
+          EOF
 
       # Start Docker Containers
       - name: Start Docker Containers
