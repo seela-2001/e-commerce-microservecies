@@ -73,6 +73,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Wait for server to be ready
+        run: sleep 30
+
       - name: Copy repository to server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -81,6 +84,7 @@ jobs:
           key: ${{ needs.provision.outputs.ssh_private_key }}
           source: "."
           target: "~/ecommerce"
+          strip_components: 0
 
       - name: Deploy with Docker Compose
         uses: appleboy/ssh-action@v1.0.0
@@ -91,6 +95,6 @@ jobs:
           script: |
             cd ~/ecommerce
             echo "Stopping running containers..."
-            docker compose down
+            docker-compose down 2>/dev/null || docker compose down 2>/dev/null || true
             echo "Starting containers..."
-            docker compose up -d --build
+            docker-compose up -d --build || docker compose up -d --build
