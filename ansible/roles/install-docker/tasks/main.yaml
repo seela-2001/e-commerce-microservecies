@@ -13,6 +13,24 @@
     state: started
     enabled: yes
 
+# Add user to docker group ---
+
+- name: Ensure docker group exists
+  ansible.builtin.group:
+    name: docker
+    state: present
+
+- name: Add user to docker group
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+
+- name: Reset SSH connection to apply new group membership
+  ansible.builtin.meta: reset_connection
+
+# ---
+
 - name: Run Nginx container
   docker_container:
     name: nginx_container
@@ -28,3 +46,18 @@
 - name: Display running containers
   debug:
     var: result.stdout_lines
+
+
+- name: Install Docker Compose
+  become: yes
+  get_url:
+    url: https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64
+    dest: /usr/local/bin/docker-compose
+    mode: '0755'
+
+- name: Create docker compose symlink
+  become: yes
+  file:
+    src: /usr/local/bin/docker-compose
+    dest: /usr/bin/docker-compose
+    state: link
