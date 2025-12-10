@@ -31,12 +31,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      # - name: Clean Terraform State
-      #   working-directory: terraform
-      #   run: |
-      #     rm -rf .terraform
-      #     rm -f .terraform.lock.hcl
-      #     rm -f terraform.tfstate*
+      - name: Clean Terraform State
+        working-directory: terraform
+        run: |
+          rm -rf .terraform
+          rm -f .terraform.lock.hcl
+          rm -f terraform.tfstate*
 
       - name: Terraform Init
         working-directory: terraform
