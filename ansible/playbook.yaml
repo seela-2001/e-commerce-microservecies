@@ -4,4 +4,4 @@
   roles:
     - role: install-git
     - role: install-docker
-    - role: deploy-project
+    # - role: deploy-project
