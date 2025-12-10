@@ -49,10 +49,25 @@ jobs:
         run: |
           echo "server_ip=$(terraform output -raw instance_public_ip)" >> $GITHUB_OUTPUT
           echo "server_user=$(terraform output -raw server_user)" >> $GITHUB_OUTPUT
+          # The key is output as a file path, we read the content for the next step
           SSH_KEY_FILE=$(terraform output -raw ssh_private_key)
           echo "ssh_private_key<<EOF" >> $GITHUB_OUTPUT
           cat "$SSH_KEY_FILE" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
+
+      # --- FIX 1: Add SSH Key to Agent ---
+      - name: Start SSH Agent and add Key
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ steps.tf_output.outputs.ssh_private_key }}
+      - name: Wait for server SSH port to be available
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ steps.tf_output.outputs.server_ip }}
+          username: ${{ steps.tf_output.outputs.server_user }}
+          key: ${{ steps.tf_output.outputs.ssh_private_key }}
+          script: |
+            echo "SSH connection successful, server is ready for Ansible."
 
       - name: Install Ansible
         run: |
@@ -62,6 +77,7 @@ jobs:
       - name: Run Ansible provision
         working-directory: terraform
         env:
+          # SSH Agent handles the key, but we disable host key checking for CI/CD convenience
           ANSIBLE_HOST_KEY_CHECKING: "False"
         run: ansible-playbook -i hosts.ini ../ansible/playbook.yaml
 
@@ -86,6 +102,7 @@ jobs:
           target: "~/ecommerce"
           strip_components: 0
 
+      # This action automatically uses the key provided
       - name: Create backend env file on server
         uses: appleboy/ssh-action@v1.0.0
         with:
