@@ -22,9 +22,10 @@ services:
 
   # Backend Service
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    # build:
+    #   context: ./backend
+    #   dockerfile: Dockerfile
+    image: sohila12/depi-backend
     container_name: flipkart-backend
     restart: unless-stopped
     ports:
@@ -69,9 +70,10 @@ services:
 
   # Frontend Service
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: sohila12/depi-frontend
+    # build:
+    #   context: ./frontend
+    #   dockerfile: Dockerfile
     container_name: flipkart-frontend
     restart: unless-stopped
     ports:
