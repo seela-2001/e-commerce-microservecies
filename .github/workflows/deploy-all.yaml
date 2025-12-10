@@ -43,6 +43,11 @@ jobs:
         working-directory: terraform
         run: terraform apply -var-file="dev-values.tfvars" -auto-approve
 
+      - name: Wait for EC2 instance to initialize
+        run: |
+          echo "Waiting 60 seconds for EC2 instance to be fully ready..."
+          sleep 60
+
       - name: Get Terraform Outputs
         id: tf_output
         working-directory: terraform
@@ -59,11 +64,38 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y ansible
 
+      - name: Prepare SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ steps.tf_output.outputs.ssh_private_key }}" > ~/.ssh/deploy_key.pem
+          chmod 600 ~/.ssh/deploy_key.pem
+
+      - name: Test SSH Connection
+        run: |
+          max_attempts=10
+          attempt=0
+          
+          until ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i ~/.ssh/deploy_key.pem \
+            ${{ steps.tf_output.outputs.server_user }}@${{ steps.tf_output.outputs.server_ip }} \
+            "echo 'SSH connection successful'" || [ $attempt -eq $max_attempts ]; do
+            attempt=$((attempt+1))
+            echo "SSH connection attempt $attempt failed. Retrying in 15 seconds..."
+            sleep 15
+          done
+          
+          if [ $attempt -eq $max_attempts ]; then
+            echo "Failed to establish SSH connection after $max_attempts attempts"
+            exit 1
+          fi
+
       - name: Run Ansible provision
         working-directory: terraform
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
-        run: ansible-playbook -i hosts.ini ../ansible/playbook.yaml
+        run: |
+          ansible-playbook -i hosts.ini ../ansible/playbook.yaml \
+            --private-key=~/.ssh/deploy_key.pem \
+            -vv
 
   deploy:
     runs-on: ubuntu-latest
@@ -72,9 +104,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
-      - name: Wait for server to be ready
-        run: sleep 30
 
       - name: Copy repository to server
         uses: appleboy/scp-action@v0.1.7
