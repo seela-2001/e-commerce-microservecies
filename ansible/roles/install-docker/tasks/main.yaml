@@ -1,44 +1,10 @@
----
-- name: Update apt cache
+- name: Update apt
   ansible.builtin.apt:
     update_cache: yes
 
-- name: Install prerequisite packages
+- name: Install Docker
   ansible.builtin.apt:
-    name:
-      - ca-certificates
-      - curl
-      - gnupg
-    state: present
-
-- name: Create keyrings directory
-  ansible.builtin.file:
-    path: /etc/apt/keyrings
-    state: directory
-    mode: '0755'
-
-- name: Add Docker GPG key
-  ansible.builtin.shell: |
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-  args:
-    creates: /etc/apt/keyrings/docker.gpg
-
-- name: Add Docker repository
-  ansible.builtin.shell: |
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-- name: Update apt again (to see new repo)
-  ansible.builtin.apt:
-    update_cache: yes
-
-- name: Install Docker and Docker Compose Plugin
-  ansible.builtin.apt:
-    name: 
-      - docker-ce
-      - docker-ce-cli
-      - containerd.io
-      - docker-buildx-plugin
-      - docker-compose-plugin  # <--- This is the magic package you were missing!
+    name: docker.io
     state: present
 
 - name: Start and enable Docker service
@@ -47,6 +13,8 @@
     state: started
     enabled: yes
 
+# Add user to docker group ---
+
 - name: Ensure docker group exists
   ansible.builtin.group:
     name: docker
@@ -54,9 +22,40 @@
 
 - name: Add user to docker group
   ansible.builtin.user:
-    name: ubuntu
+    name: "{{ ansible_user }}"
     groups: docker
     append: yes
 
-- name: Reset SSH connection
+- name: Reset SSH connection to apply new group membership
   ansible.builtin.meta: reset_connection
+
+# ---
+
+- name: Run Nginx container
+  docker_container:
+    name: nginx_container
+    image: nginx
+    state: started
+    ports:
+      - "8080:80"
+
+- name: Show running containers
+  shell: docker ps
+  register: result
+
+- name: Display running containers
+  debug:
+    var: result.stdout_lines
+
+
+- name: Install Docker Compose
+  get_url:
+    url: https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64
+    dest: /usr/local/bin/docker-compose
+    mode: '0755'
+
+- name: Create docker compose symlink
+  file:
+    src: /usr/local/bin/docker-compose
+    dest: /usr/bin/docker-compose
+    state: link
