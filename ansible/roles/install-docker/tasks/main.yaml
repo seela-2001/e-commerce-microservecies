@@ -1,47 +1,78 @@
-- name: Install prerequisites
-  apt:
+---
+# 1. CLEANUP WARNINGS & SETUP
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Install prerequisite packages
+  ansible.builtin.apt:
     name:
-      - apt-transport-https
       - ca-certificates
       - curl
       - gnupg
-      - lsb-release
     state: present
-    update_cache: yes
+
+- name: Create keyrings directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
 
 - name: Add Docker GPG key
-  apt_key:
-    url: https://download.docker.com/linux/ubuntu/gpg
-    state: present
+  ansible.builtin.shell: |
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  args:
+    creates: /etc/apt/keyrings/docker.gpg
 
 - name: Add Docker repository
-  apt_repository:
-    repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
-    state: present
+  ansible.builtin.shell: |
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-- name: Install Docker Engine
-  apt:
-    name: docker-ce
-    state: latest
+- name: Update apt again
+  ansible.builtin.apt:
     update_cache: yes
 
-- name: Run Nginx container
-  docker_container:
-    name: nginx
-    image: nginx:latest
+- name: Install Docker components
+  ansible.builtin.apt:
+    name: 
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+
+# --- CRITICAL FIX START: Configure containerd ---
+# Docker often fails to start because containerd isn't configured for Systemd
+
+- name: Ensure containerd config directory exists
+  ansible.builtin.file:
+    path: /etc/containerd
+    state: directory
+
+- name: Generate default containerd config
+  ansible.builtin.shell: containerd config default > /etc/containerd/config.toml
+  args:
+    creates: /etc/containerd/config.toml
+
+- name: Enable SystemdCgroup in containerd
+  ansible.builtin.replace:
+    path: /etc/containerd/config.toml
+    regexp: 'SystemdCgroup = false'
+    replace: 'SystemdCgroup = true'
+
+- name: Restart containerd to apply changes
+  ansible.builtin.service:
+    name: containerd
+    state: restarted
+# --- CRITICAL FIX END ---
+
+- name: Start and enable Docker service
+  ansible.builtin.service:
+    name: docker
     state: started
-    ports:
-      - "80:80"
-
-- name: Show running Docker containers
-  command: docker ps
-  register: docker_ps_output
-
-- name: Display Docker containers output
-  debug:
-    msg: "{{ docker_ps_output.stdout_lines }}"
-
-# Add user to docker group ---
+    enabled: yes
 
 - name: Ensure docker group exists
   ansible.builtin.group:
@@ -50,11 +81,9 @@
 
 - name: Add user to docker group
   ansible.builtin.user:
-    name: "{{ ansible_user }}"
+    name: ubuntu
     groups: docker
     append: yes
 
-- name: Reset SSH connection to apply new group membership
+- name: Reset SSH connection
   ansible.builtin.meta: reset_connection
-
-# ---
