@@ -1,30 +1,23 @@
-- name: Create target directory
-  file:
-    path: /home/ubuntu/e-commerce-microservices
-    state: directory
-    owner: ubuntu
-    group: ubuntu
-    mode: "0755"
+- name: Copy repository to server (excluding terraform and ansible)
+  synchronize:
+    src: "{{ playbook_dir }}/.."
+    dest: /home/ubuntu/e-commerce-microservices
+    recursive: yes
+    delete: no
+    rsync_opts:
+      - "--exclude=.git"
+      - "--exclude=terraform/"
+      - "--exclude=ansible/"
+    private_key: "${GITHUB_WORKSPACE}/terraform/flipkart-key.pem"
 
-- name: Copy project files (excluding terraform and ansible)
-  copy:
-    src: "{{ playbook_dir }}/../"
-    dest: /home/ubuntu/e-commerce-microservices/
-    owner: ubuntu
-    group: ubuntu
-    mode: "0644"
-    exclude:
-      - terraform
-      - ansible
-      - .git
-
-- name: Create backend .env file
+- name: Create backend .env file from example
   copy:
     src: "{{ playbook_dir }}/../backend/config/config.env.example"
     dest: /home/ubuntu/e-commerce-microservices/backend/config/.env
     owner: ubuntu
     group: ubuntu
     mode: "0644"
+    private_key: "${GITHUB_WORKSPACE}/terraform/flipkart-key.pem"
 
 - name: Run docker-compose
   shell: |
