@@ -8,6 +8,7 @@
       - "--exclude=.git"
       - "--exclude=terraform/"
       - "--exclude=ansible/"
+  delegate_to: localhost
 
 - name: Create backend .env file from example
   copy:
