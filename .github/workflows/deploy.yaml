@@ -8,8 +8,12 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy:
+  provision:
     runs-on: ubuntu-latest
+    outputs:
+      server_ip: ${{ steps.tf_output.outputs.server_ip }}
+      server_user: ${{ steps.tf_output.outputs.server_user }}
+      ssh_private_key: ${{ steps.tf_output.outputs.ssh_private_key }}
 
     steps:
       # Checkout
