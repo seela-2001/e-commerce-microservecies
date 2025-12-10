@@ -105,8 +105,8 @@ jobs:
             cd /home/ubuntu/app
             
             # Stop old containers if running
-            sudo docker compose down || true
+            sudo docker-compose down || true
             
             # Start new containers (rebuilding if necessary)
-            sudo docker compose up -d --build
+            sudo docker-compose up -d --build
           EOF
