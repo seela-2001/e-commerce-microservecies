@@ -19,6 +19,8 @@ jobs:
       # Install Terraform
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_wrapper: false
 
       # Add AWS credentials
       - name: Configure AWS Credentials
