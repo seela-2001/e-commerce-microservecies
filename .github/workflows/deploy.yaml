@@ -98,7 +98,7 @@ jobs:
         working-directory: terraform
         run: |
           # Copy the example file to the actual .env file
-          cp ../backend/config/config.env.example ../backend/config/.env
+          cp ../backend/config/config.env.example /home/ubuntu/app/backend/config/.env
           
           # (Optional) If you need to verify it was created:
           ls -la ../backend/config/
