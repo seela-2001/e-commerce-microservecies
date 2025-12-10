@@ -74,3 +74,14 @@ jobs:
           ANSIBLE_HOST_KEY_CHECKING: "False"
         run: ansible-playbook -i hosts.ini ../ansible/playbook.yaml
 
+      - name: Deploy Code via Rsync
+        working-directory: terraform
+        run: |
+          # "-i ${{ env.KEY_FILE }}" tells it to use your terraform-generated key
+          # "../" means "copy the whole repository" (since we are inside the terraform folder)
+          rsync -avz -e "ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no" \
+          --exclude '.git' \
+          --exclude 'terraform' \
+          --exclude 'ansible' \
+          --exclude 'node_modules' \
+          ../ ubuntu@${{ env.EC2_IP }}:/home/ubuntu/app/
