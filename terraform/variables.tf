@@ -67,3 +67,8 @@ variable "rds_password" {
     type = string
     description = "RDS password"
 }
+
+variable "db_engine" {
+    type = string
+    description = "RDS database engine"
+}

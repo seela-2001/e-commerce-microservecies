@@ -16,5 +16,6 @@ private_subnet_cidrs = "10.0.2.0/24"
 
 availability_zones   = ["us-east-1a", "us-east-1b", "us-east-1c"]
 
-rds_username         = "admin"
+rds_username         = "admin" 
 rds_password         = "password"
+db_engine            = "postgres"
