@@ -71,4 +71,5 @@ variable "rds_password" {
 variable "db_engine" {
     type = string
     description = "RDS database engine"
+    # default     = "postgres"
 }
