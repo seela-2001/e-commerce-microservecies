@@ -39,12 +39,12 @@ jobs:
       # Terraform PLAN
       - name: Terraform Plan
         working-directory: terraform
-        run: terraform plan -var-file="dev-values.tfvars"
+        run: terraform plan
 
       # Terraform APPLY
       - name: Terraform Apply
         working-directory: terraform
-        run: terraform apply -var-file="dev-values.tfvars" -auto-approve
+        run: terraform apply  -auto-approve
 
 
       - name: Get Connection Info
