@@ -1,126 +1,126 @@
-# name: Deploy Infra & Configure Server
+name: Deploy Infra & Configure Server
 
-# on:
-#   push:
-#     branches:
-#       - main
-#       - last-deploy
-#   workflow_dispatch:
+on:
+  push:
+    branches:
+      - main
+      - last-deploy
+  workflow_dispatch:
 
-# jobs:
-#   deploy:
-#     runs-on: ubuntu-latest
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
 
-#     steps:
-#       # Checkout
-#       - name: Checkout repository
-#         uses: actions/checkout@v3
+    steps:
+      # Checkout
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-#       # Install Terraform
-#       - name: Install Terraform
-#         uses: hashicorp/setup-terraform@v2
-#         with:
-#           terraform_wrapper: false
+      # Install Terraform
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_wrapper: false
 
-#       # Add AWS credentials
-#       - name: Configure AWS Credentials
-#         uses: aws-actions/configure-aws-credentials@v4
-#         with:
-#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#           aws-region: ${{ vars.AWS_REGION }}
-
-
-#       # Terraform INIT
-#       - name: Terraform Init
-#         working-directory: terraform
-#         run: terraform init
-
-#       # Terraform PLAN
-#       - name: Terraform Plan
-#         working-directory: terraform
-#         run: terraform plan
-
-#       # Terraform APPLY
-#       - name: Terraform Apply
-#         working-directory: terraform
-#         run: terraform apply  -auto-approve
+      # Add AWS credentials
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
 
 
-#       - name: Get Connection Info
-#         working-directory: terraform
-#         run: |
-#           # Save the Public IP to a Github ENV variable
-#           echo "EC2_IP=$(terraform output -raw instance_public_ip)" >> $GITHUB_ENV
+      # Terraform INIT
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      # Terraform PLAN
+      - name: Terraform Plan
+        working-directory: terraform
+        run: terraform plan
+
+      # Terraform APPLY
+      - name: Terraform Apply
+        working-directory: terraform
+        run: terraform apply  -auto-approve
+
+
+      - name: Get Connection Info
+        working-directory: terraform
+        run: |
+          # Save the Public IP to a Github ENV variable
+          echo "EC2_IP=$(terraform output -raw instance_public_ip)" >> $GITHUB_ENV
           
 
-#           # Save the Private Key filename to a Github ENV variable
-#           echo "KEY_FILE=$(terraform output -raw ssh_private_key)" >> $GITHUB_ENV
+          # Save the Private Key filename to a Github ENV variable
+          echo "KEY_FILE=$(terraform output -raw ssh_private_key)" >> $GITHUB_ENV
           
 
 
-#       # Install Ansible
-#       - name: Install Ansible
-#         run: |
-#           echo "EC2_IP is $EC2_IP"
-#           echo "Private key file is $KEY_FILE"
-#           sudo apt-get update -y
-#           sudo apt-get install -y ansible
+      # Install Ansible
+      - name: Install Ansible
+        run: |
+          echo "EC2_IP is $EC2_IP"
+          echo "Private key file is $KEY_FILE"
+          sudo apt-get update -y
+          sudo apt-get install -y ansible
 
-#       # Run Ansible playbook
-#       - name: Run Ansible provision
-#         working-directory: terraform
-#         env:
-#           ANSIBLE_HOST_KEY_CHECKING: "False"
-#         run: ansible-playbook -i ../terraform/hosts.ini ../ansible/playbook.yaml
+      # Run Ansible playbook
+      - name: Run Ansible provision
+        working-directory: terraform
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: ansible-playbook -i ../terraform/hosts.ini ../ansible/playbook.yaml
 
-#       # Check User Groups
-#       - name: Check User Groups (Debug)
-#         working-directory: terraform
-#         run: |
-#           echo "Checking groups for user ubuntu..."
-#           ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no ubuntu@${{ env.EC2_IP }} "groups"
+      # Check User Groups
+      - name: Check User Groups (Debug)
+        working-directory: terraform
+        run: |
+          echo "Checking groups for user ubuntu..."
+          ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no ubuntu@${{ env.EC2_IP }} "groups"
 
-#       - name: Deploy Code via Rsync
-#         working-directory: terraform
-#         run: |
-#           # "-i ${{ env.KEY_FILE }}" tells it to use your terraform-generated key
-#           # "../" means "copy the whole repository" (since we are inside the terraform folder)
-#           rsync -avz -e "ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no" \
-#           --exclude '.git' \
-#           --exclude 'terraform' \
-#           --exclude 'ansible' \
-#           --exclude 'node_modules' \
-#           ../ ubuntu@${{ env.EC2_IP }}:/home/ubuntu/app/
+      - name: Deploy Code via Rsync
+        working-directory: terraform
+        run: |
+          # "-i ${{ env.KEY_FILE }}" tells it to use your terraform-generated key
+          # "../" means "copy the whole repository" (since we are inside the terraform folder)
+          rsync -avz -e "ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no" \
+          --exclude '.git' \
+          --exclude 'terraform' \
+          --exclude 'ansible' \
+          --exclude 'node_modules' \
+          ../ ubuntu@${{ env.EC2_IP }}:/home/ubuntu/app/
 
-#       # Create .env file on EC2 instance from GitHub secrets
-#       - name: Create Backend Env File
-#         working-directory: terraform
-#         env:
-#           ENV_BACKEND_CONTENT: ${{ secrets.ENV_BACKEND_CONTENT }}
-#         run: |
-#           ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no ubuntu@${{ env.EC2_IP }} << EOF
-#             cd /home/ubuntu/app/backend/config
+      # Create .env file on EC2 instance from GitHub secrets
+      - name: Create Backend Env File
+        working-directory: terraform
+        env:
+          ENV_BACKEND_CONTENT: ${{ secrets.ENV_BACKEND_CONTENT }}
+        run: |
+          ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no ubuntu@${{ env.EC2_IP }} << EOF
+            cd /home/ubuntu/app/backend/config
             
-#             # Create the .env file with the secret content
-#             echo "$ENV_BACKEND_CONTENT" > .env
+            # Create the .env file with the secret content
+            echo "$ENV_BACKEND_CONTENT" > .env
             
-#             # Verify it was created
-#             echo ".env file created successfully"
-#             ls -la .env
-#           EOF
+            # Verify it was created
+            echo ".env file created successfully"
+            ls -la .env
+          EOF
 
-#       # Start Docker Containers
-#       - name: Start Docker Containers
-#         working-directory: terraform
-#         run: |
-#           # Connect via SSH and run these commands on the server
-#           ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no ubuntu@${{ env.EC2_IP }} << 'EOF'
-#             cd /home/ubuntu/app
+      # Start Docker Containers
+      - name: Start Docker Containers
+        working-directory: terraform
+        run: |
+          # Connect via SSH and run these commands on the server
+          ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no ubuntu@${{ env.EC2_IP }} << 'EOF'
+            cd /home/ubuntu/app
             
-#             # Stop old containers if running
-#             sudo docker compose down || true
+            # Stop old containers if running
+            sudo docker compose down || true
             
-#             # Start new containers (rebuilding if necessary)
-#             sudo docker compose up -d --build
-#           EOF
+            # Start new containers (rebuilding if necessary)
+            sudo docker compose up -d --build
+          EOF
