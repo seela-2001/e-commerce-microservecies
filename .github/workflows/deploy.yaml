@@ -67,28 +67,6 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y ansible
 
-      - name: Wait for SSH Port (22) to be ready on EC2
-        run: |
-          # Use the EC2_IP output from the previous step
-          MAX_RETRIES=10
-          SLEEP_SECONDS=15
-          RETRY_COUNT=0
-          
-          echo "Waiting for SSH (Port 22) on ${{ env.EC2_IP }} to become available..."
-          
-          until nc -z -w 5 ${{ env.EC2_IP }} 22; do
-            RETRY_COUNT=$((RETRY_COUNT + 1))
-            if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
-              echo "Error: Timeout waiting for SSH on ${{ env.EC2_IP }} after $RETRY_COUNT retries."
-              exit 1
-            fi
-            echo "SSH not ready yet. Retrying in $SLEEP_SECONDS seconds... (Attempt $RETRY_COUNT/$MAX_RETRIES)"
-            sleep $SLEEP_SECONDS
-          done
-          
-          echo "SSH port is open! Continuing to Ansible provision."
-        shell: bash
-
       # Run Ansible playbook
       - name: Run Ansible provision
         working-directory: terraform
