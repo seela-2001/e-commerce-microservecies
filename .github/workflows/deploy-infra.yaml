@@ -63,7 +63,7 @@ jobs:
         run: ansible-playbook -i ./hosts.ini ../ansible/playbook.yaml
 
       - name: Upload Connection Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: connection-artifacts
           path: |
