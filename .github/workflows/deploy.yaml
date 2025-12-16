@@ -50,43 +50,46 @@ jobs:
       - name: Get Connection Info
         working-directory: terraform
         run: |
-          # Save the Public IP to a Github ENV variable
-          echo "EC2_IP=$(terraform output -raw instance_public_ip)" >> $GITHUB_ENV
+          # Terraform output is a list of IPs. We extract the first IP 
+          # for use in single-host SSH/Rsync commands. This IP is now your stable EIP.
+          EC2_IP_LIST=$(terraform output -raw instance_public_ip)
+          FIRST_EC2_IP=$(echo $EC2_IP_LIST | awk '{print $1}')
           
-
-          # Save the Private Key filename to a Github ENV variable
+          echo "EC2_IP=$FIRST_EC2_IP" >> $GITHUB_ENV
           echo "KEY_FILE=$(terraform output -raw ssh_private_key)" >> $GITHUB_ENV
           
+          echo "First EC2 IP set to: $FIRST_EC2_IP"
 
-
-      # Install Ansible
-      - name: Install Ansible
+      - name: Install Dependencies (Ansible and Netcat)
         run: |
-          echo "EC2_IP is $EC2_IP"
-          echo "Private key file is $KEY_FILE"
+          echo "EC2_IP is ${{ env.EC2_IP }}"
+          echo "Private key file is ${{ env.KEY_FILE }}"
           sudo apt-get update -y
-          sudo apt-get install -y ansible
+          # Install Ansible and netcat-openbsd (for 'nc -z')
+          sudo apt-get install -y ansible netcat-openbsd
+
 
       - name: Wait for SSH Port (22) to be ready on EC2
         run: |
-          # Use the EC2_IP output from the previous step
-          MAX_RETRIES=10
-          SLEEP_SECONDS=15
+          TARGET_IP="${{ env.EC2_IP }}"
+          MAX_RETRIES=15
+          SLEEP_SECONDS=10
           RETRY_COUNT=0
           
-          echo "Waiting for SSH (Port 22) on ${{ env.EC2_IP }} to become available..."
+          echo "Waiting for SSH (Port 22) on $TARGET_IP to become available..."
           
-          until nc -z -w 5 ${{ env.EC2_IP }} 22; do
+          # 'nc -z' checks if the port is open; we retry up to MAX_RETRIES times
+          until nc -z -w 5 $TARGET_IP 22; do
             RETRY_COUNT=$((RETRY_COUNT + 1))
-            if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
-              echo "Error: Timeout waiting for SSH on ${{ env.EC2_IP }} after $RETRY_COUNT retries."
+            if [ $RETRY_COUNT -gt $MAX_RETRIES ]; then
+              echo "Error: Timeout waiting for SSH on $TARGET_IP after $RETRY_COUNT retries."
               exit 1
             fi
             echo "SSH not ready yet. Retrying in $SLEEP_SECONDS seconds... (Attempt $RETRY_COUNT/$MAX_RETRIES)"
             sleep $SLEEP_SECONDS
           done
           
-          echo "SSH port is open! Continuing to Ansible provision."
+          echo "SSH port on $TARGET_IP is open! Continuing deployment."
         shell: bash
 
       # Run Ansible playbook
@@ -94,20 +97,24 @@ jobs:
         working-directory: terraform
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
-        run: ansible-playbook -i hosts.ini ../ansible/playbook.yaml
+        run: |
+          echo "--- Generated hosts.ini for Ansible ---"
+          cat hosts.ini
+          echo "-------------------------------------"
+          # FIXED PATH: The inventory file is in the current working directory (terraform)
+          ansible-playbook -i hosts.ini ../ansible/playbook.yaml
 
       # Check User Groups
       - name: Check User Groups (Debug)
         working-directory: terraform
         run: |
-          echo "Checking groups for user ubuntu..."
+          echo "Checking groups for user ubuntu on ${{ env.EC2_IP }}..."
           ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no ubuntu@${{ env.EC2_IP }} "groups"
 
       - name: Deploy Code via Rsync
         working-directory: terraform
         run: |
-          # "-i ${{ env.KEY_FILE }}" tells it to use your terraform-generated key
-          # "../" means "copy the whole repository" (since we are inside the terraform folder)
+          # The wait step ensures SSH is ready before Rsync attempts connection
           rsync -avz -e "ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no" \
           --exclude '.git' \
           --exclude 'terraform' \
@@ -121,7 +128,9 @@ jobs:
         env:
           ENV_BACKEND_CONTENT: ${{ secrets.ENV_BACKEND_CONTENT }}
         run: |
-          ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no ubuntu@${{ env.EC2_IP }} << EOF
+          # The 'EOF' must be quoted ('EOF') to prevent shell variable expansion 
+          # on the GitHub Actions runner (which would corrupt $ENV_BACKEND_CONTENT)
+          ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no ubuntu@${{ env.EC2_IP }} << 'EOF'
             cd /home/ubuntu/app/backend/config
             
             # Create the .env file with the secret content
