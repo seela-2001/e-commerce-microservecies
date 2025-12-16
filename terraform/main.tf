@@ -118,7 +118,7 @@ resource "tls_private_key" "pk" {
 }
 
 resource "aws_key_pair" "kp" {
-    key_name   = "${var.project_id}-key-2"
+    key_name   = "${var.project_id}-key-1"
     public_key = tls_private_key.pk.public_key_openssh
 }
 
