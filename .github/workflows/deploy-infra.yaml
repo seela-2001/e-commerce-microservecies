@@ -1,0 +1,72 @@
+name: Deploy Infra & Configure Server
+
+on:
+  push:
+    branches:
+      - main
+      - last-deploy
+    paths:
+      - 'terraform/**'
+      - 'ansible/**'
+  workflow_dispatch:
+
+jobs:
+  infra_provision:
+    runs-on: ubuntu-latest
+    outputs:
+      host_ips: ${{ steps.get_host_info.outputs.host_ips }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Terraform & Ansible
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_wrapper: false
+      - run: sudo apt-get update && sudo apt-get install -y ansible
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Terraform Init & Apply
+        working-directory: terraform
+        run: |
+          terraform init
+          terraform plan
+          terraform apply -auto-approve
+
+      - name: Get & Export Host Info
+        id: get_host_info
+        working-directory: terraform
+        run: |
+          # 1. Export the list of IPs as a JSON array (for next workflow's matrix)
+          # We use "sed -z" to remove newline characters to make it a single line JSON string
+          HOSTS_JSON=$(terraform output -json instance_public_ip | jq -c '.')
+          echo "host_ips=$HOSTS_JSON" >> $GITHUB_OUTPUT
+          
+          # 2. Export the Private Key filename
+          KEY_FILE=$(terraform output -raw ssh_private_key)
+          echo "KEY_FILE=$KEY_FILE" >> $GITHUB_ENV
+
+          # 3. Fix permissions on the generated key file (Crucial fix for SSH)
+          chmod 400 $KEY_FILE
+
+      - name: Run Ansible provision (Server Configuration)
+        working-directory: terraform
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: ansible-playbook -i ./hosts.ini ../ansible/playbook.yaml
+
+      - name: Upload Connection Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: connection-artifacts
+          path: |
+            terraform/hosts.ini
+            # Assuming your key file is generated inside the terraform directory:
+            terraform/${{ env.KEY_FILE }}
