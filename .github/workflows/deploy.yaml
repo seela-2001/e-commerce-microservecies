@@ -72,7 +72,7 @@ jobs:
         working-directory: terraform
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
-        run: ansible-playbook -i ../terraform/hosts.ini ../ansible/playbook.yaml
+        run: ansible-playbook -i hosts.ini ../ansible/playbook.yaml
 
       # Check User Groups
       - name: Check User Groups (Debug)
