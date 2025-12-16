@@ -53,4 +53,3 @@ resource "aws_db_instance" "main" {
   }
 }
 
-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
