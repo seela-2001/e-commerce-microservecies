@@ -50,23 +50,27 @@ jobs:
       - name: Get Connection Info
         working-directory: terraform
         run: |
-          # Terraform output is a list of IPs. We extract the first IP 
-          # for use in single-host SSH/Rsync commands. This IP is now your stable EIP.
-          EC2_IP_LIST=$(terraform output -raw instance_public_ip)
-          FIRST_EC2_IP=$(echo $EC2_IP_LIST | awk '{print $1}')
+          # 1. Get the list of IPs in JSON format
+          EC2_IP_JSON=$(terraform output -json instance_public_ip)
           
+          # 2. Use 'jq' to extract the first element (the first IP)
+          FIRST_EC2_IP=$(echo $EC2_IP_JSON | jq -r '.[0]')
+          
+          # 3. Get the key file path using -raw (it's a single string, so -raw is fine)
+          KEY_FILE=$(terraform output -raw ssh_private_key)
+
           echo "EC2_IP=$FIRST_EC2_IP" >> $GITHUB_ENV
-          echo "KEY_FILE=$(terraform output -raw ssh_private_key)" >> $GITHUB_ENV
+          echo "KEY_FILE=$KEY_FILE" >> $GITHUB_ENV
           
           echo "First EC2 IP set to: $FIRST_EC2_IP"
 
-      - name: Install Dependencies (Ansible and Netcat)
+      - name: Install Dependencies (Ansible, Netcat, JQ)
         run: |
           echo "EC2_IP is ${{ env.EC2_IP }}"
           echo "Private key file is ${{ env.KEY_FILE }}"
           sudo apt-get update -y
-          # Install Ansible and netcat-openbsd (for 'nc -z')
-          sudo apt-get install -y ansible netcat-openbsd
+          # Install Ansible, netcat-openbsd (for 'nc -z'), and jq (for JSON parsing)
+          sudo apt-get install -y ansible netcat-openbsd jq
 
 
       - name: Wait for SSH Port (22) to be ready on EC2
