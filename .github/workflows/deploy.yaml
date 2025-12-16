@@ -115,6 +115,13 @@ jobs:
           echo "Checking groups for user ubuntu on ${{ env.EC2_IP }}..."
           ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no ubuntu@${{ env.EC2_IP }} "groups"
 
+      - name: Ensure Application Directory Exists
+        working-directory: terraform
+        run: |
+          echo "Creating /home/ubuntu/app directory on ${{ env.EC2_IP }}"
+          # Use the environment variables to connect and create the directory with 'mkdir -p'
+          ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no ubuntu@${{ env.EC2_IP }} "mkdir -p /home/ubuntu/app"
+
       - name: Deploy Code via Rsync
         working-directory: terraform
         run: |
