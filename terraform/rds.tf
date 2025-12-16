@@ -52,3 +52,5 @@ resource "aws_db_instance" "main" {
     Name = "${var.project_id}-db"
   }
 }
+
+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
