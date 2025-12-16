@@ -1,5 +1,5 @@
 output "instance_public_ip" {
-    value = aws_instance.app_server.public_ip
+    value = aws_instance.app_server[*].public_ip
 }
 
 output "ssh_private_key" {
@@ -7,6 +7,6 @@ output "ssh_private_key" {
 }
 
 resource "local_file" "ansible_inventory" {
-    content  = "[webservers]\n${aws_instance.app_server.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${local_file.private_key.filename} ansible_become=true"
+    content = "[webservers]\n${join("\n", [for instance in aws_instance.app_server : "${instance.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${local_file.private_key.filename} ansible_become=true"])}"
     filename = "./hosts.ini"
 }

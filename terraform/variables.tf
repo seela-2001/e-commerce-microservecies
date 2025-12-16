@@ -37,3 +37,39 @@ variable "ami_id" {
     type        = string
     description = "AMI ID for EC2"
 }
+
+variable "cluster_name" {
+    description = "Name of the EKS cluster"
+    type = string
+}
+
+variable "public_subnet_cidrs" {
+    type = string
+    description = "List of CIDR blocks for public subnets"
+}
+
+variable "private_subnet_cidrs" {
+    type = string
+    description = "List of CIDR blocks for private subnets"
+}
+
+variable "availability_zones" {
+    type = list(string)
+    description = "List of availability zones"
+}
+
+variable "rds_username" {
+    type = string
+    description = "RDS username"
+}
+
+variable "rds_password" {
+    type = string
+    description = "RDS password"
+}
+
+variable "db_engine" {
+    type = string
+    description = "RDS database engine"
+    # default     = "postgres"
+}
