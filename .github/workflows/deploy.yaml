@@ -47,16 +47,17 @@ jobs:
         run: terraform apply  -auto-approve
 
 
+      # FIX 1: Get Connection Info - Use -json and jq to handle list output
       - name: Get Connection Info
         working-directory: terraform
         run: |
           # 1. Get the list of IPs in JSON format
           EC2_IP_JSON=$(terraform output -json instance_public_ip)
           
-          # 2. Use 'jq' to extract the first element (the first IP)
+          # 2. Use 'jq' to extract the first element (the first IP) for single-host commands
           FIRST_EC2_IP=$(echo $EC2_IP_JSON | jq -r '.[0]')
           
-          # 3. Get the key file path using -raw (it's a single string, so -raw is fine)
+          # 3. Get the key file path (which is a single string)
           KEY_FILE=$(terraform output -raw ssh_private_key)
 
           echo "EC2_IP=$FIRST_EC2_IP" >> $GITHUB_ENV
@@ -64,6 +65,7 @@ jobs:
           
           echo "First EC2 IP set to: $FIRST_EC2_IP"
 
+      # FIX 2: Install Dependencies - Added 'jq' and 'netcat-openbsd'
       - name: Install Dependencies (Ansible, Netcat, JQ)
         run: |
           echo "EC2_IP is ${{ env.EC2_IP }}"
@@ -72,7 +74,7 @@ jobs:
           # Install Ansible, netcat-openbsd (for 'nc -z'), and jq (for JSON parsing)
           sudo apt-get install -y ansible netcat-openbsd jq
 
-
+      # FIX 3: Wait Step - Ensures SSH is ready before Ansible/Rsync attempts connection
       - name: Wait for SSH Port (22) to be ready on EC2
         run: |
           TARGET_IP="${{ env.EC2_IP }}"
@@ -108,24 +110,24 @@ jobs:
           # FIXED PATH: The inventory file is in the current working directory (terraform)
           ansible-playbook -i hosts.ini ../ansible/playbook.yaml
 
-      # Check User Groups
+      # Check User Groups (Debug)
       - name: Check User Groups (Debug)
         working-directory: terraform
         run: |
           echo "Checking groups for user ubuntu on ${{ env.EC2_IP }}..."
           ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no ubuntu@${{ env.EC2_IP }} "groups"
 
+      # FIX 4: Ensure Application Directory Exists - Prevents Rsync failure
       - name: Ensure Application Directory Exists
         working-directory: terraform
         run: |
           echo "Creating /home/ubuntu/app directory on ${{ env.EC2_IP }}"
-          # Use the environment variables to connect and create the directory with 'mkdir -p'
           ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no ubuntu@${{ env.EC2_IP }} "mkdir -p /home/ubuntu/app"
-
+          
       - name: Deploy Code via Rsync
         working-directory: terraform
         run: |
-          # The wait step ensures SSH is ready before Rsync attempts connection
+          # This will now succeed as the destination directory exists
           rsync -avz -e "ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no" \
           --exclude '.git' \
           --exclude 'terraform' \
@@ -139,8 +141,7 @@ jobs:
         env:
           ENV_BACKEND_CONTENT: ${{ secrets.ENV_BACKEND_CONTENT }}
         run: |
-          # The 'EOF' must be quoted ('EOF') to prevent shell variable expansion 
-          # on the GitHub Actions runner (which would corrupt $ENV_BACKEND_CONTENT)
+          # This will now succeed as the /home/ubuntu/app directory exists
           ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no ubuntu@${{ env.EC2_IP }} << 'EOF'
             cd /home/ubuntu/app/backend/config
             
@@ -156,7 +157,7 @@ jobs:
       - name: Start Docker Containers
         working-directory: terraform
         run: |
-          # Connect via SSH and run these commands on the server
+          # The 'cd' command will now succeed, allowing docker compose to run
           ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no ubuntu@${{ env.EC2_IP }} << 'EOF'
             cd /home/ubuntu/app
             
