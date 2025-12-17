@@ -153,6 +153,23 @@ jobs:
             ls -la .env
           EOF
 
+      # Create .env file for Frontend
+      - name: Create Frontend Env File
+        working-directory: terraform
+        env:
+          ENV_FRONTEND_CONTENT: ${{ secrets.ENV_FRONTEND_CONTENT }}
+        run: |
+          ssh -i ${{ env.KEY_FILE }} -o StrictHostKeyChecking=no ubuntu@${{ env.EC2_IP }} << 'EOF'
+            cd /home/ubuntu/app/frontend
+            
+            # Create the .env file with the secret content
+            echo "$ENV_FRONTEND_CONTENT" > .env
+            
+            # Verify it was created
+            echo "Frontend .env file created successfully"
+            ls -la .env
+          EOF
+
       # Start Docker Containers
       - name: Start Docker Containers
         working-directory: terraform
